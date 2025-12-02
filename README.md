@@ -1,4 +1,5 @@
 # real-time-chatting-web-application# DevChat - Real-Time Messaging Application
+not devloped fullu there is a lot of bugs and issues wait we will update it 
 
 ## 🚀 Introduction
 
