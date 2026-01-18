@@ -87,7 +87,6 @@ async def main():
     async def process_request(path, request_headers):
         """Process WebSocket upgrade requests"""
         logging.info(f"WebSocket request: path={path}")
-        logging.info(f"Headers: {dict(request_headers)}")
         # Return None to continue with default processing
         return None
     
@@ -101,11 +100,7 @@ async def main():
         compression=None,
         ping_interval=20,
         ping_timeout=20,
-        max_size=10 * 1024 * 1024,  # 10MB max message size
-        # Accept all origins
-        origins=None,
-        # Don't check origin
-        check_origin=False
+        max_size=10 * 1024 * 1024  # 10MB max message size
     ):
         logging.info(f"🚀 WebSocket signaling server started on 0.0.0.0:{PORT}")
         logging.info(f"📞 Ready to accept WebSocket connections")
