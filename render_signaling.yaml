@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: real-chat-signaling-server
+    env: python
+    buildCommand: pip install -r signaling_requirements.txt
+    startCommand: python signaling_server_production.py
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        generateValue: true

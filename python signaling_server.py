@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 # Stores connected users {user_id: websocket_connection}
 connected_users = {}
 
-async def handler(websocket, path):
+async def handler(websocket):
     """Handles incoming WebSocket connections and messages."""
     user_id = None
     try:
@@ -17,13 +17,17 @@ async def handler(websocket, path):
         data = json.loads(message)
         if data.get('type') == 'register':
             user_id = data.get('userId')
-            if user_id and user_id not in connected_users:
+            if user_id:
+                # If user already exists, just update the connection (don't close old one - let it timeout naturally)
+                if user_id in connected_users:
+                    logging.info(f"Updating connection for user '{user_id}'")
+                
                 connected_users[user_id] = websocket
                 logging.info(f"User '{user_id}' registered and connected.")
                 await websocket.send(json.dumps({"type": "register_ok"}))
             else:
-                logging.warning(f"Registration failed for user: {user_id}")
-                await websocket.send(json.dumps({"type": "error", "message": "Invalid or duplicate user ID"}))
+                logging.warning(f"Registration failed - no user ID provided")
+                await websocket.send(json.dumps({"type": "error", "message": "Invalid user ID"}))
                 await websocket.close()
                 return
         else:
@@ -46,8 +50,13 @@ async def handler(websocket, path):
                     logging.info(f"Forwarded message from '{user_id}' to '{target_user_id}': {data.get('type')}")
                 else:
                     logging.warning(f"Target user '{target_user_id}' not found or not connected for message from '{user_id}'.")
-                    # Optionally send an error back to the sender
-                    # await websocket.send(json.dumps({"type": "error", "message": f"User {target_user_id} not available"}))
+                    # Send user unavailable response back to the sender
+                    if data.get('type') == 'offer':
+                        await websocket.send(json.dumps({
+                            "type": "user_unavailable",
+                            "targetUserId": target_user_id,
+                            "message": "User is not online"
+                        }))
 
             except json.JSONDecodeError:
                 logging.error(f"Received invalid JSON from {user_id}: {message}")
