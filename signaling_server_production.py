@@ -83,22 +83,39 @@ async def websocket_handler(websocket):
             logging.info(f"User '{user_id}' disconnected and unregistered.")
 
 async def main():
-    # Start WebSocket server with proper Render configuration
+    # Custom request processor to debug WebSocket handshakes
+    async def process_request(path, request_headers):
+        """Process WebSocket upgrade requests"""
+        logging.info(f"WebSocket request: path={path}")
+        logging.info(f"Headers: {dict(request_headers)}")
+        # Return None to continue with default processing
+        return None
+    
+    # Start WebSocket server with Render-compatible configuration
     async with websockets.serve(
         websocket_handler, 
         "0.0.0.0", 
         PORT,
-        # Configuration for Render deployment
+        # Render production configuration
+        process_request=process_request,
         compression=None,
         ping_interval=20,
         ping_timeout=20,
         max_size=10 * 1024 * 1024,  # 10MB max message size
-        # Allow connections from any origin
-        origins=None
+        # Accept all origins
+        origins=None,
+        # Don't check origin
+        check_origin=False
     ):
-        logging.info(f"🚀 WebSocket signaling server started on port {PORT}")
+        logging.info(f"🚀 WebSocket signaling server started on 0.0.0.0:{PORT}")
         logging.info(f"📞 Ready to accept WebSocket connections")
+        logging.info(f"🌐 Accepting connections from all origins")
         await asyncio.Future()  # Run forever
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("Server stopped by user")
+    except Exception as e:
+        logging.error(f"Server error: {e}")
