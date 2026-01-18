@@ -3249,10 +3249,8 @@
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 return 'ws://localhost:8765';
             }
-            // For production without signaling server, return null to disable calls
-            // TODO: Replace with your production signaling server URL when deployed
-            // Example: return 'wss://your-signaling-server.onrender.com';
-            return null;
+            // Production signaling server deployed on Render
+            return 'wss://real-time-chatting-web-application-call.onrender.com';
         };
 
         window.connectSignalingServer = () => {
