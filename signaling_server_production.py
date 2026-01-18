@@ -3,7 +3,6 @@ import websockets
 import json
 import logging
 import os
-from aiohttp import web
 
 # Configure logging
 logging.basicConfig(
@@ -83,40 +82,22 @@ async def websocket_handler(websocket):
             del connected_users[user_id]
             logging.info(f"User '{user_id}' disconnected and unregistered.")
 
-# HTTP health check handler for Render
-async def health_check(request):
-    """Simple health check endpoint for Render"""
-    return web.Response(text='OK', status=200)
-
 async def main():
-    # Create HTTP server for health checks
-    app = web.Application()
-    app.router.add_get('/health', health_check)
-    app.router.add_get('/', health_check)
-    
-    runner = web.AppRunner(app)
-    await runner.setup()
-    
-    # Start HTTP server on PORT for health checks
-    site = web.TCPSite(runner, '0.0.0.0', PORT)
-    await site.start()
-    
-    logging.info(f"🏥 HTTP health check server started on port {PORT}")
-    
-    # Start WebSocket server on PORT + 1
-    ws_port = PORT + 1
+    # Start WebSocket server with proper Render configuration
     async with websockets.serve(
         websocket_handler, 
         "0.0.0.0", 
-        ws_port,
-        # Render WebSocket config
+        PORT,
+        # Configuration for Render deployment
         compression=None,
         ping_interval=20,
         ping_timeout=20,
-        max_size=10 * 1024 * 1024  # 10MB max message size
+        max_size=10 * 1024 * 1024,  # 10MB max message size
+        # Allow connections from any origin
+        origins=None
     ):
-        logging.info(f"🚀 WebSocket signaling server started on port {ws_port}")
-        logging.info(f"📞 Ready to accept WebSocket connections on ws://0.0.0.0:{ws_port}")
+        logging.info(f"🚀 WebSocket signaling server started on port {PORT}")
+        logging.info(f"📞 Ready to accept WebSocket connections")
         await asyncio.Future()  # Run forever
 
 if __name__ == "__main__":
