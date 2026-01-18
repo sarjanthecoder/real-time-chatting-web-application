@@ -3232,11 +3232,18 @@
         let contextMenuMessageId = null;
         let forwardMessageData = null;
 
+        // *** ICE SERVERS FOR WEBRTC ***
         const ICE_SERVERS = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+                { urls: 'stun:stun.services.mozilla.com' },
+                { urls: 'stun:stun.antisip.com' }
+            ],
+            iceCandidatePoolSize: 10
         };
 
         // *** SIGNALING SERVER CONNECTION ***
@@ -3413,6 +3420,34 @@
                             candidate: event.candidate,
                             targetUserId: selectedChatUser.id
                         }));
+                    }
+                };
+
+                // Enhanced connection state monitoring
+                peerConnection.onconnectionstatechange = () => {
+                    console.log('📞 Connection state:', peerConnection.connectionState);
+                    if (peerConnection.connectionState === 'connected') {
+                        console.log('✅ Peer connection established!');
+                        document.getElementById('callStatus').textContent = 'Connected';
+                        if (!callTimerInterval) {
+                            startCallTimer();
+                        }
+                    } else if (peerConnection.connectionState === 'failed') {
+                        console.error('❌ Connection failed!');
+                        alert('Call connection failed. Please try again.');
+                        endCall();
+                    } else if (peerConnection.connectionState === 'disconnected') {
+                        console.log('📞 Connection disconnected');
+                    }
+                };
+
+                // ICE connection state monitoring
+                peerConnection.oniceconnectionstatechange = () => {
+                    console.log('🧊 ICE connection state:', peerConnection.iceConnectionState);
+                    if (peerConnection.iceConnectionState === 'failed') {
+                        console.error('❌ ICE connection failed!');
+                        alert('Network connection failed. Please check your internet and try again.');
+                        endCall();
                     }
                 };
 
@@ -3610,6 +3645,31 @@
                             candidate: event.candidate,
                             targetUserId: incomingCallData.senderUserId
                         }));
+                    }
+                };
+
+                // Enhanced connection state monitoring (for accepter)
+                peerConnection.onconnectionstatechange = () => {
+                    console.log('📞 AcceptCall Connection state:', peerConnection.connectionState);
+                    if (peerConnection.connectionState === 'connected') {
+                        console.log('✅ Peer connection established on accept!');
+                        document.getElementById('callStatus').textContent = 'Connected';
+                        if (!callTimerInterval) {
+                            startCallTimer();
+                        }
+                    } else if (peerConnection.connectionState === 'failed') {
+                        console.error('❌ Accept Connection failed!');
+                        alert('Call connection failed. Please try again.');
+                        endCall();
+                    }
+                };
+
+                peerConnection.oniceconnectionstatechange = () => {
+                    console.log('🧊 AcceptCall ICE state:', peerConnection.iceConnectionState);
+                    if (peerConnection.iceConnectionState === 'failed') {
+                        console.error('❌ Accept ICE failed!');
+                        alert('Network connection failed.');
+                        endCall();
                     }
                 };
 
