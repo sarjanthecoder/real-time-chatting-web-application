@@ -3,6 +3,7 @@ import websockets
 import json
 import logging
 import os
+from aiohttp import web
 
 # Configure logging
 logging.basicConfig(
@@ -16,7 +17,7 @@ PORT = int(os.environ.get('PORT', 8765))
 # Stores connected users {user_id: websocket_connection}
 connected_users = {}
 
-async def handler(websocket):
+async def websocket_handler(websocket):
     """Handles incoming WebSocket connections and messages."""
     user_id = None
     try:
@@ -26,7 +27,7 @@ async def handler(websocket):
         if data.get('type') == 'register':
             user_id = data.get('userId')
             if user_id:
-                # If user already exists, just update the connection (don't close old one - let it timeout naturally)
+                # If user already exists, just update the connection
                 if user_id in connected_users:
                     logging.info(f"Updating connection for user '{user_id}'")
                 
@@ -52,13 +53,12 @@ async def handler(websocket):
                 if target_user_id and target_user_id in connected_users:
                     target_ws = connected_users[target_user_id]
                     # Forward the message to the target user
-                    # Add sender information so the receiver knows who it's from
                     data['senderUserId'] = user_id 
                     await target_ws.send(json.dumps(data))
                     logging.info(f"Forwarded message from '{user_id}' to '{target_user_id}': {data.get('type')}")
                 else:
-                    logging.warning(f"Target user '{target_user_id}' not found or not connected for message from '{user_id}'.")
-                    # Send user unavailable response back to the sender
+                    logging.warning(f"Target user '{target_user_id}' not found")
+                    # Send user unavailable response
                     if data.get('type') == 'offer':
                         await websocket.send(json.dumps({
                             "type": "user_unavailable",
@@ -67,7 +67,7 @@ async def handler(websocket):
                         }))
 
             except json.JSONDecodeError:
-                logging.error(f"Received invalid JSON from {user_id}: {message}")
+                logging.error(f"Invalid JSON from {user_id}: {message}")
             except Exception as e:
                 logging.error(f"Error processing message from {user_id}: {e}")
 
@@ -83,13 +83,40 @@ async def handler(websocket):
             del connected_users[user_id]
             logging.info(f"User '{user_id}' disconnected and unregistered.")
 
+# HTTP health check handler for Render
+async def health_check(request):
+    """Simple health check endpoint for Render"""
+    return web.Response(text='OK', status=200)
+
 async def main():
-    # Start the WebSocket server
-    # Use 0.0.0.0 to accept connections from any host (required for production)
-    # Render will automatically handle SSL/TLS, so we use ws:// not wss://
-    async with websockets.serve(handler, "0.0.0.0", PORT):
-        logging.info(f"🚀 Production signaling server started on port {PORT}")
-        logging.info(f"📞 Ready to accept WebSocket connections")
+    # Create HTTP server for health checks
+    app = web.Application()
+    app.router.add_get('/health', health_check)
+    app.router.add_get('/', health_check)
+    
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    # Start HTTP server on PORT for health checks
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
+    await site.start()
+    
+    logging.info(f"🏥 HTTP health check server started on port {PORT}")
+    
+    # Start WebSocket server on PORT + 1
+    ws_port = PORT + 1
+    async with websockets.serve(
+        websocket_handler, 
+        "0.0.0.0", 
+        ws_port,
+        # Render WebSocket config
+        compression=None,
+        ping_interval=20,
+        ping_timeout=20,
+        max_size=10 * 1024 * 1024  # 10MB max message size
+    ):
+        logging.info(f"🚀 WebSocket signaling server started on port {ws_port}")
+        logging.info(f"📞 Ready to accept WebSocket connections on ws://0.0.0.0:{ws_port}")
         await asyncio.Future()  # Run forever
 
 if __name__ == "__main__":
